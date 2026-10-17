@@ -1,0 +1,49 @@
+Subject: [PATCH 2/2] fix: accept opcode 1 as map-ready signal
+
+The 1.5.5 client answers the 0x4000 board-init with a type 299 inner opcode 1
+and never sends the documented opcode 0. The server only treated 0 as
+"map ready", so it waited for the full 90 s map_load_timeout while the client
+stayed frozen on the loading screen.
+
+Observed (fix absent):
+
+    game_admitted
+    richonline_map_load_wait timeout_ms=90000
+    game_received type=299 payload_bytes=13
+    richonline_game_received opcode=1 plain_bytes=2
+    (no further game_transport for 90 s)
+
+Treat 1 like 0, keeping the existing map_loaded de-duplication so repeated
+signals do not resend the snapshot or opening turn.
+
+After the fix:
+
+    richonline_map_ready_via_opcode1
+    richonline_game_sent opcode=16400 / 16401 / 16911 / 24602 ...
+    client enters the board
+
+---
+ server/src/richonline_game_startup.cpp | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/server/src/richonline_game_startup.cpp b/server/src/richonline_game_startup.cpp
+--- a/server/src/richonline_game_startup.cpp
++++ b/server/src/richonline_game_startup.cpp
+@@ -115,7 +115,17 @@
+         if (opcode == 0 || opcode == 1 || opcode == 2 || opcode == 10) {
+             if (plain.size() != 2) throw CodecError("richonline_game_signal_length_invalid");
+-            if (opcode == 1) return {};
++            if (opcode == 1) {
++                // Local verification: the 1.5.5 client sends 1 instead of 0 after 0x4000.
++                // Treat it as map-ready; never resend once loaded.
++                if (map_loaded) return {};
++                auto messages = std::vector<Bytes>{encode_richonline_board_snapshot(plan->snapshot)};
++                auto opening = plan->map_ready();
++                messages.insert(messages.end(), std::make_move_iterator(opening.begin()), std::make_move_iterator(opening.end()));
++                auto result = output(messages);
++                map_loaded = true;
++                map_loading_deadline.reset();
++                if (log) log("richonline_map_ready_via_opcode1");
++                return result;
++            }
+             if (opcode == 0) {

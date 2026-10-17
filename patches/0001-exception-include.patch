@@ -1,0 +1,27 @@
+Subject: [PATCH 1/2] fix: include <exception> for std::exception_ptr under libc++
+
+server/src/richonline_game_registry.cpp uses std::exception_ptr but relies on
+transitive includes. libc++ only forward-declares it in <__exception/operations.h>,
+so the file fails to compile with LLVM-MinGW clang:
+
+    error: variable has incomplete type 'std::exception_ptr'
+
+Add the explicit include.
+
+---
+ server/src/richonline_game_registry.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/server/src/richonline_game_registry.cpp b/server/src/richonline_game_registry.cpp
+--- a/server/src/richonline_game_registry.cpp
++++ b/server/src/richonline_game_registry.cpp
+@@ -1,8 +1,9 @@
+ #include "richonline_game_registry.hpp"
+ 
+ #include <algorithm>
+ #include <atomic>
++#include <exception>
+ #include <set>
+ #include <utility>
+ 
+ namespace richnet {
