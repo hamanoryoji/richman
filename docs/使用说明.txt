@@ -52,3 +52,8 @@ server\             服务端
   config\resources\ 从客户端导出的 KPD / EMP 资源
   data\             账号数据库与运行配置
 server\logs\        每次启动的运行日志（native-<pid>.jsonl）
+client-patch\       客户端日期补丁的独立存档
+  RnClient.datecompat.exe   补丁后的客户端（备用副本）
+  InventoryDatePatch.exe    重新打补丁的工具
+  apply-date-patch.ps1      一键：校验原版哈希 → 打补丁 → 覆盖
+  README.md                 偏移、哈希、回滚说明
