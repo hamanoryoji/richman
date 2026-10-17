@@ -1,0 +1,12 @@
+# 不提交客户端资源与构建产物
+client/*
+!client/local.ini
+server/
+build/
+*.exe
+*.dll
+*.sqlite3
+*.dmp
+*.zip
+*.png
+_pack/
